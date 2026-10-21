@@ -1,0 +1,313 @@
+/* ==========================================================================
+   style.css - Gaya komponen SkinScan
+   Tata letak umum (grid/flex/spacing) memakai utilitas Tailwind di HTML;
+   file ini berisi token desain + gaya komponen.
+
+   Daftar isi:
+     1. Token desain (warna, font)
+     2. Dasar & tombol
+     3. Hero (teks kiri)
+     4. Viewport pemindai + animasi scanning
+     5. Kontrol, progres, error
+     6. Halaman hasil
+     7. Aksesibilitas & responsif
+   ========================================================================== */
+
+/* ---------- 1. Token desain ---------- */
+:root {
+  --ink: #12262e;          /* teks utama (biru petrol gelap) */
+  --muted: #53686f;        /* teks sekunder */
+  --paper: #edf3f2;        /* latar halaman */
+  --surface: #ffffff;
+  --line: #d2dddb;        /* garis pembatas */
+  --brand: #0f7f80;        /* tombol utama */
+  --brand-strong: #0a6163;
+  --scanner-bg: #0c1a1f;   /* latar viewport pemindai */
+  --scan: #6cf0dc;         /* warna garis scan */
+
+  /* Warna status kulit (dipilih lewat atribut data-skin pada #view-result) */
+  --oily: #b07404;
+  --dull: #6361ab;
+  --dry: #96612d;
+  --normal: #1f8559;
+  --accent: var(--brand);
+
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---------- 2. Dasar & tombol ---------- */
+[hidden] { display: none !important; }   /* atribut hidden selalu menang atas display lain */
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.01em; margin: 0; }
+
+.brand {
+  display: inline-flex; align-items: center; gap: .55rem;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.25rem;
+  color: var(--brand-strong); text-decoration: none;
+}
+.privacy-note { margin: 0; font-size: .8rem; color: var(--muted); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+  min-height: 48px; padding: 0 1.4rem;
+  border: 2px solid transparent; border-radius: 14px;
+  font: 600 1rem/1 var(--font-body); cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-strong); }
+.btn-outline { background: transparent; color: var(--brand-strong); border-color: var(--brand); }
+.btn-outline:hover { background: rgba(15, 127, 128, .08); }
+.btn-ghost { background: transparent; color: var(--ink); }
+.btn-ghost:hover { background: rgba(18, 38, 46, .07); }
+.btn-back { padding-left: .8rem; }
+
+/* ---------- 3. Hero ---------- */
+.hero-copy h1 {
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.08; font-weight: 700;
+  max-width: 15ch;
+}
+.lead { margin: 1.2rem 0 0; max-width: 46ch; font-size: 1.08rem; color: var(--muted); }
+
+.tips { list-style: none; margin: 2.2rem 0 0; padding: 0; display: grid; gap: .55rem; max-width: 46ch; }
+.tips li {
+  position: relative; padding-left: 1.6rem; font-size: .95rem; color: var(--ink);
+}
+.tips li::before {            /* tanda centang kecil */
+  content: ""; position: absolute; left: 0; top: .42rem;
+  width: .9rem; height: .5rem; border-left: 2.5px solid var(--brand); border-bottom: 2.5px solid var(--brand);
+  transform: rotate(-45deg) scale(.8); transform-origin: center;
+}
+
+/* ---------- 4. Viewport pemindai ---------- */
+.scanner-wrap { width: 100%; max-width: 420px; margin-inline: auto; }
+
+.scanner {
+  position: relative; width: 100%; aspect-ratio: 3 / 4;
+  border-radius: 28px; overflow: hidden;
+  background: var(--scanner-bg);
+  box-shadow: 0 24px 50px -24px rgba(12, 26, 31, .55);
+  transition: outline-color .15s;
+  outline: 3px solid transparent; outline-offset: 4px;
+}
+.scanner.is-dragover { outline-color: var(--brand); }
+
+/* Kisi tipis ala layar pengukur */
+.scanner__grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(108, 240, 220, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(108, 240, 220, .07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Foto / video memenuhi bingkai */
+.scanner__media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scanner__video { transform: scaleX(-1); }   /* cermin agar terasa seperti selfie */
+
+/* Panduan oval wajah */
+.scanner__guide { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.scanner__guide ellipse {
+  fill: none; stroke: rgba(108, 240, 220, .75); stroke-width: 2.5; stroke-dasharray: 7 9;
+}
+
+/* Siku bingkai pada empat sudut */
+.corner { position: absolute; width: 34px; height: 34px; border: 0 solid var(--scan); opacity: .9; }
+.corner--tl { top: 16px;    left: 16px;  border-top-width: 3px;    border-left-width: 3px;  border-top-left-radius: 10px; }
+.corner--tr { top: 16px;    right: 16px; border-top-width: 3px;    border-right-width: 3px; border-top-right-radius: 10px; }
+.corner--bl { bottom: 16px; left: 16px;  border-bottom-width: 3px; border-left-width: 3px;  border-bottom-left-radius: 10px; }
+.corner--br { bottom: 16px; right: 16px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 10px; }
+
+.scanner__hint {
+  position: absolute; left: 0; right: 0; bottom: 6%;
+  margin: 0; text-align: center; padding-inline: 2rem;
+  color: #cfe9e5; font-weight: 500; font-size: .95rem; line-height: 1.5;
+}
+.scanner__hint span { color: #8fb3ae; font-weight: 400; font-size: .85rem; }
+
+/* Saat foto/kamera tampil, panduan oval dibuat lebih samar agar tidak mengganggu */
+.scanner[data-state="camera"] .scanner__guide ellipse,
+.scanner[data-state="preview"] .scanner__guide ellipse { stroke: rgba(255, 255, 255, .55); }
+.scanner[data-state="preview"] .scanner__guide,
+.scanner[data-state="scanning"] .scanner__guide { opacity: .0; }
+.scanner[data-state="preview"] .scanner__grid,
+.scanner[data-state="camera"] .scanner__grid { opacity: 0; }
+
+/* --- ANIMASI SCANNING ---
+   Garis bercahaya bergerak naik-turun melewati foto, dengan jejak cahaya di belakangnya.
+   Kisi tetap tampil agar terasa seperti proses pengukuran. */
+.scanner[data-state="scanning"] .scanner__grid { opacity: 1; z-index: 1; }
+.scanner[data-state="scanning"] .scanner__media { filter: saturate(.8) brightness(.85); }
+.scanner[data-state="scanning"] .corner { animation: pulse 1.2s ease-in-out infinite; }
+
+.scan-sweep {
+  position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 2;
+  pointer-events: none;
+  animation: sweep 2.4s ease-in-out infinite alternate;
+}
+.scan-sweep__line {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--scan) 20%, var(--scan) 80%, transparent);
+  box-shadow: 0 0 22px 5px rgba(108, 240, 220, .55);
+}
+.scan-sweep__trail {
+  position: absolute; left: 0; right: 0; bottom: 3px; height: 38%;
+  background: linear-gradient(to top, rgba(108, 240, 220, .28), transparent);
+}
+/* Garis berada di dasar wadah (tinggi 100%), jadi translateY negatif = garis naik */
+@keyframes sweep {
+  from { transform: translateY(-92%); }
+  to   { transform: translateY(-4%); }
+}
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* ---------- 5. Kontrol, progres, error ---------- */
+.scanner-controls { margin-top: 1.1rem; min-height: 52px; }
+.controls-row { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+
+.scan-progress { text-align: center; }
+.scan-progress__text { margin: 0 0 .6rem; font-weight: 600; color: var(--brand-strong); }
+.scan-progress__bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.scan-progress__bar span {
+  display: block; height: 100%; width: 0; border-radius: inherit;
+  background: var(--brand); transition: width .6s ease;
+}
+
+.error-box {
+  margin-top: 1rem; padding: .9rem 1.1rem; border-radius: 14px;
+  background: #fdecec; border-left: 4px solid #c23a3a; color: #6f1d1d;
+}
+.error-box strong { display: block; font-family: var(--font-display); }
+.error-box p { margin: .2rem 0 0; font-size: .92rem; }
+
+/* ---------- 6. Halaman hasil ---------- */
+.result[data-skin="oily"]   { --accent: var(--oily); }
+.result[data-skin="dull"]   { --accent: var(--dull); }
+.result[data-skin="dry"]    { --accent: var(--dry); }
+.result[data-skin="normal"] { --accent: var(--normal); }
+
+/* Foto hasil */
+.result-photo { margin: 0; }
+.result-photo__frame {
+  border-radius: 24px; overflow: hidden; background: var(--scanner-bg);
+  max-width: 460px; margin-inline: auto;
+  box-shadow: 0 20px 44px -26px rgba(12, 26, 31, .6);
+}
+/* Tinggi mengikuti rasio foto asli; batas tinggi menjaga foto potret tetap muat di layar */
+.result-photo__frame img { display: block; width: 100%; height: auto; max-height: 640px; object-fit: contain; }
+
+.segmented {
+  display: flex; width: max-content; margin: 1rem auto 0; padding: 4px;
+  background: #dde7e5; border-radius: 12px;
+}
+.segmented button {
+  min-height: 40px; padding: 0 1rem; border: 0; border-radius: 9px;
+  background: transparent; color: var(--muted); font: 600 .9rem var(--font-body); cursor: pointer;
+}
+.segmented button.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+
+.legend {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem 1rem;
+  margin-top: .9rem; font-size: .82rem; color: var(--muted);
+}
+.dot { display: inline-block; width: .7rem; height: .7rem; margin-right: .35rem; border-radius: 50%; }
+.dot--zone  { background: #14bea9; }
+.dot--shine { background: #f5be1e; }
+.dot--red   { background: #eb5a5a; }
+.dot--dark  { background: #4696e6; }
+
+/* Status utama */
+.result-kicker { margin: 0; color: var(--muted); font-size: .95rem; }
+.result-status {
+  margin-top: .3rem; font-size: clamp(2.6rem, 8vw, 4.2rem); line-height: 1; font-weight: 700;
+  color: var(--accent);
+  padding-left: 1rem; border-left: 8px solid var(--accent);   /* batang warna = penanda status */
+}
+.result-status:focus { outline: none; }
+.result-summary { margin: 1.1rem 0 0; max-width: 52ch; font-size: 1.05rem; }
+.blemish-chip {
+  max-width: 52ch; margin: 1rem 0 0; padding: .65rem 1rem;
+  border-radius: 14px; background: var(--surface); border: 1.5px solid var(--line);
+  font-size: .92rem; color: var(--muted);
+}
+.blemish-chip strong { color: var(--ink); font-weight: 600; }
+
+.warnings {
+  margin-top: 1.2rem; padding: .85rem 1.1rem; border-radius: 14px;
+  background: #fff6e0; border-left: 4px solid #d99a06; color: #5c4200; font-size: .92rem;
+}
+.warnings p { margin: 0; }
+.warnings p + p { margin-top: .4rem; }
+
+.section-title { margin: 2rem 0 .9rem; font-size: 1.15rem; font-weight: 600; }
+.section-title--lg { font-size: 1.7rem; margin-top: 0; font-weight: 700; }
+
+/* Baris metrik: nilai + bar dengan penanda ambang batas */
+.metrics { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.15rem; }
+.metric__head { display: flex; justify-content: space-between; gap: 1rem; font-weight: 600; }
+.metric__value { font-variant-numeric: tabular-nums; }
+.metric__bar { position: relative; height: 10px; margin-top: .45rem; border-radius: 999px; background: #dbe5e3; }
+.metric__fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--accent); transition: width .9s cubic-bezier(.2, .8, .2, 1); }
+.metric__marker { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 2px; }
+.metric__hint { margin: .35rem 0 0; font-size: .82rem; color: var(--muted); }
+
+/* Saran perawatan: kolom dipisah garis, bukan kartu */
+.routine, .advice { display: grid; gap: 2rem; }
+.routine { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); padding-bottom: 2rem; border-bottom: 1px solid var(--line); }
+.advice  { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); padding-top: 2rem; }
+.routine h4, .advice h4 { font-size: 1.05rem; margin-bottom: .7rem; }
+
+.plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .65rem; }
+.plain-list li { position: relative; padding-left: 1.1rem; font-size: .96rem; }
+.plain-list li::before {
+  content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+}
+.plain-list--avoid li::before { background: #c23a3a; }
+
+.chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+.chips li {
+  padding: .35rem .8rem; border-radius: 999px; font-size: .9rem; font-weight: 500;
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 35%, white);
+}
+
+/* "Kenapa hasilnya begini?" */
+.why { margin-top: 2.5rem; padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.why summary { cursor: pointer; font-weight: 600; font-family: var(--font-display); min-height: 32px; }
+.why__intro { margin: .8rem 0 1rem; font-size: .92rem; color: var(--muted); }
+.trace { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }
+.trace li { padding: .7rem .9rem; border-radius: 12px; background: #f3f7f6; font-size: .92rem; }
+.trace li.is-fired { background: color-mix(in srgb, var(--accent) 12%, white); border: 1.5px solid var(--accent); }
+.trace .trace__rule { font-weight: 600; }
+.trace .trace__meta { display: block; margin-top: .15rem; color: var(--muted); font-size: .85rem; }
+
+.disclaimer { margin: 1.8rem 0 0; max-width: 70ch; font-size: .85rem; color: var(--muted); }
+
+/* ---------- 7. Aksesibilitas & responsif ---------- */
+:focus-visible { outline: 3px solid #1b9aaa; outline-offset: 3px; }
+
+@media (max-width: 640px) {
+  .btn { flex: 1 1 100%; }
+  .controls-row .btn { flex: 1 1 auto; }
+  .privacy-note { display: none; }
+}
+
+/* Hormati pengguna yang mematikan animasi di perangkatnya */
+@media (prefers-reduced-motion: reduce) {
+  .scan-sweep { animation: none; transform: translateY(-50%); }
+  .scanner[data-state="scanning"] .corner { animation: none; }
+  .metric__fill, .scan-progress__bar span { transition: none; }
+}

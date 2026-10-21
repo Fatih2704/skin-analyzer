@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkinScan - Deteksi dan Analisis Kulit Wajah</title>
+  <meta name="description" content="Analisis kondisi kulit wajah dari satu foto: kecerahan, kilap minyak, tekstur, dan bintik, lengkap dengan saran perawatan.">
+
+  <!-- Font (Google Fonts). Jika offline, otomatis memakai font sistem. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN: dipakai untuk tata letak (grid/flex/spacing).
+       Gaya khusus komponen ada di static/css/style.css -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+  <!-- ===================== HEADER ===================== -->
+  <header class="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
+    <a href="/" class="brand" aria-label="SkinScan, ke halaman awal">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+        <ellipse cx="16" cy="16" rx="9" ry="12" fill="none" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M3 16h26" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <span>SkinScan</span>
+    </a>
+    <p class="privacy-note">Foto tidak disimpan di server</p>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
+
+    <!-- ============================================================
+         TAMPILAN 1: AMBIL FOTO (upload / kamera / scanning)
+         ============================================================ -->
+    <section id="view-capture" class="grid items-center gap-10 lg:grid-cols-2 lg:gap-20 lg:pt-6" aria-labelledby="hero-title">
+
+      <!-- Kolom kiri: teks + tombol aksi -->
+      <div class="hero-copy">
+        <h1 id="hero-title">Lihat kondisi kulit wajahmu dalam beberapa detik</h1>
+        <p class="lead">
+          Sistem menilai kecerahan, kilap minyak, tekstur, dan bintik dari satu foto,
+          lalu memberi saran perawatan yang sesuai.
+        </p>
+
+        <div id="start-actions" class="mt-8 flex flex-wrap gap-3">
+          <button id="btn-upload" type="button" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+            Unggah foto
+          </button>
+          <button id="btn-camera" type="button" class="btn btn-outline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+            Buka kamera
+          </button>
+          <!-- Input file disembunyikan; dibuka lewat tombol "Unggah foto" -->
+          <input id="file-input" type="file" accept="image/*" hidden>
+        </div>
+
+        <ul class="tips" aria-label="Tips foto yang baik">
+          <li>Hadap lurus ke kamera, tanpa filter.</li>
+          <li>Gunakan cahaya terang yang merata, hindari flash.</li>
+          <li>Singkirkan poni, kacamata, atau masker dari wajah.</li>
+        </ul>
+      </div>
+
+      <!-- Kolom kanan: VIEWPORT PEMINDAI.
+           Satu bingkai dipakai bergantian untuk 4 keadaan (data-state):
+           idle -> camera -> preview -> scanning -->
+      <div class="scanner-wrap">
+        <div id="scanner" class="scanner" data-state="idle" aria-label="Area pratinjau foto">
+          <div class="scanner__grid" aria-hidden="true"></div>
+
+          <video id="video" class="scanner__media scanner__video" autoplay playsinline muted hidden></video>
+          <img id="preview-img" class="scanner__media" alt="Pratinjau foto wajah" hidden>
+
+          <!-- Panduan bingkai wajah -->
+          <svg class="scanner__guide" viewBox="0 0 300 400" aria-hidden="true">
+            <ellipse cx="150" cy="190" rx="98" ry="132" />
+          </svg>
+          <span class="corner corner--tl" aria-hidden="true"></span>
+          <span class="corner corner--tr" aria-hidden="true"></span>
+          <span class="corner corner--bl" aria-hidden="true"></span>
+          <span class="corner corner--br" aria-hidden="true"></span>
+
+          <!-- Animasi scanning (hanya tampil saat state = scanning) -->
+          <div id="scan-sweep" class="scan-sweep" hidden aria-hidden="true">
+            <div class="scan-sweep__trail"></div>
+            <div class="scan-sweep__line"></div>
+          </div>
+
+          <!-- Teks keadaan kosong -->
+          <p id="idle-hint" class="scanner__hint">
+            Pratinjau foto muncul di sini<br>
+            <span>atau seret foto ke bingkai ini</span>
+          </p>
+        </div>
+
+        <!-- Kontrol di bawah bingkai: berganti sesuai state -->
+        <div class="scanner-controls" aria-live="polite">
+          <div id="controls-camera" class="controls-row" hidden>
+            <button id="btn-shoot" type="button" class="btn btn-primary">Ambil foto</button>
+            <button id="btn-cancel-camera" type="button" class="btn btn-ghost">Batal</button>
+          </div>
+          <div id="controls-preview" class="controls-row" hidden>
+            <button id="btn-analyze" type="button" class="btn btn-primary">Analisis kulit</button>
+            <button id="btn-change" type="button" class="btn btn-ghost">Ganti foto</button>
+          </div>
+          <div id="controls-scanning" class="scan-progress" hidden>
+            <p id="scan-text" class="scan-progress__text">Memulai analisis</p>
+            <div class="scan-progress__bar"><span id="scan-bar"></span></div>
+          </div>
+        </div>
+
+        <!-- Pesan error (kamera ditolak, wajah tidak terdeteksi, dll.) -->
+        <div id="error-box" class="error-box" role="alert" hidden>
+          <strong id="error-title"></strong>
+          <p id="error-text"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         TAMPILAN 2: HASIL ANALISIS
+         Diisi oleh static/js/ui.js (renderResult) dari JSON backend.
+         data-skin diganti JS (oily | dull | dry | normal) untuk mengubah warna aksen.
+         ============================================================ -->
+    <section id="view-result" class="result" data-skin="normal" aria-labelledby="result-title" hidden>
+
+      <button id="btn-restart" type="button" class="btn btn-ghost btn-back">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        Scan ulang
+      </button>
+
+      <div class="mt-6 grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-16">
+
+        <!-- Foto + pilihan tampilan -->
+        <figure class="result-photo">
+          <div class="result-photo__frame">
+            <img id="result-img" alt="Foto wajah yang dianalisis">
+          </div>
+          <div class="segmented" role="group" aria-label="Pilih tampilan foto">
+            <button type="button" id="seg-original" class="is-active" aria-pressed="true">Foto asli</button>
+            <button type="button" id="seg-annotated" aria-pressed="false">Area analisis</button>
+          </div>
+          <figcaption id="photo-legend" class="legend" hidden>
+            <span><i class="dot dot--zone"></i>Zona yang dianalisis</span>
+            <span><i class="dot dot--shine"></i>Kilap</span>
+            <span><i class="dot dot--red"></i>Bintik merah</span>
+            <span><i class="dot dot--dark"></i>Noda gelap</span>
+          </figcaption>
+        </figure>
+
+        <!-- Status + metrik -->
+        <div>
+          <p class="result-kicker">Kondisi kulit terdeteksi</p>
+          <h2 id="result-title" class="result-status" tabindex="-1"></h2>
+          <p id="result-summary" class="result-summary"></p>
+          <p id="result-blemish" class="blemish-chip"></p>
+
+          <div id="warnings" class="warnings" hidden></div>
+
+          <h3 class="section-title">Hasil pengukuran</h3>
+          <ul id="metrics" class="metrics"></ul>
+        </div>
+      </div>
+
+      <!-- Rekomendasi -->
+      <div class="mt-14">
+        <h3 class="section-title section-title--lg">Saran perawatan</h3>
+        <div class="routine">
+          <div>
+            <h4>Pagi</h4>
+            <ul id="rec-morning" class="plain-list"></ul>
+          </div>
+          <div>
+            <h4>Malam</h4>
+            <ul id="rec-night" class="plain-list"></ul>
+          </div>
+        </div>
+
+        <div class="advice">
+          <div>
+            <h4>Kandungan yang cocok</h4>
+            <ul id="rec-ingredients" class="chips"></ul>
+          </div>
+          <div>
+            <h4>Sebaiknya dihindari</h4>
+            <ul id="rec-avoid" class="plain-list plain-list--avoid"></ul>
+          </div>
+          <div>
+            <h4>Kebiasaan pendukung</h4>
+            <ul id="rec-lifestyle" class="plain-list"></ul>
+          </div>
+          <div id="blemish-block" hidden>
+            <h4>Untuk bintik dan noda</h4>
+            <ul id="rec-blemish" class="plain-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transparansi Rule-Based: kenapa hasilnya begini -->
+      <details class="why">
+        <summary>Kenapa hasilnya begini?</summary>
+        <p class="why__intro">
+          Aturan diperiksa berurutan. Aturan pertama yang terpenuhi menentukan hasil.
+        </p>
+        <ol id="rule-trace" class="trace"></ol>
+      </details>
+
+      <p id="disclaimer" class="disclaimer"></p>
+
+      <div class="mt-8">
+        <button id="btn-restart-bottom" type="button" class="btn btn-primary">Scan foto lain</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- JavaScript dipecah per tanggung jawab (ES Modules); titik masuk: main.js -->
+  <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Backend web
+Flask>=3.0
+
+# AI engine (Computer Vision)
+opencv-python-headless>=4.8
+numpy>=1.24
+
+# OPSIONAL: hanya jika ingin memakai detektor wajah MediaPipe (Deep Learning).
+# Tanpa ini, sistem otomatis memakai OpenCV Haar Cascade.
+# mediapipe>=0.10
+
+# Untuk menjalankan pengujian
+pytest>=7.4
